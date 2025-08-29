@@ -2,43 +2,58 @@ from atmosphere import atmosphere
 from atmos_constants import atmos
 from engine_f16 import tgear, pdot, thrust
 from aerodata_f16 import CX,CY,CZ, CL,CM,CN, DLDA, DLDR, DNDA, DNDR, aerodynamic_damp
-from numpy import sqrt, arcsin, arccos, arctan, cos, sin, zeros
-import pandas as pd
+from numpy import sqrt, cos, sin, zeros
 from numpy import sqrt
 
-def  airdata(vt_mps, alt_m):
-    [T_K, p_Pa, rho_kgpm3] = atmosphere(alt_m,0)
-    mach = vt_mps/sqrt(1.4*atmos.R*T_K)
-    Q_Pa = 0.5*rho_kgpm3*vt_mps**2
-    return mach, Q_Pa
+# Set extra outputs for eqm
+class Outputs:
+    def __init__(self):
+        self.nz_g = 0.0
+        self.nz_g_pilot = 0.0
+        self.ny_g = 0.0
+        self.nx_g = 0.0
+        self.Q_lbfpft2 = 0.0
+        self.mach = 0.0
+        self.thrust_pound = 0.0
+        self.aero_forces = [0.0,0.0,0.0]
+        self.aero_moments = [0.0,0.0,0.0]
+        self.gamma_deg = 0.0
 
-# Utility to allow functions as control inputs 
-def get_control_value(t, value):
-    # if type(value)==13: # Scilab version if type()==13 or 11 then a function
-    if callable(value):
-        v = value(t)
-    else:
-        v = value
+    def get(self, name):
+        return getattr(self, name)
     
-    return v
+    def set(self, name, value):
+        setattr(self, name, value)
 
-def eqm(t, X, controls, params):
+def  airdata(Vt_fps, alt_ft):
+    R0 = 2.377e-3
+    TFac = 1 - 0.703e-5 * alt_ft
+    T = 519 * TFac
+
+    if (alt_ft >= 35000):
+        T = 390
+
+    rho = R0 * TFac**4.14
+    aMach = Vt_fps/sqrt(1.4*1716.3*T)
+    qBar = 0.5*rho*Vt_fps**2
+    return aMach, qBar
+
+def eqm(X, controls, params):
     # F-16 model from Stevens And Lewis,second edition, pg 184
     mass = params.mass
     geom = params.geom
     
     g0_ftps2 = 32.17
     rad2deg = 57.29578
-    ft2m = 0.3048
-    kn2mps = 0.514444
+
     # python script
     XD=zeros(len(X))
     
     #Control variables
-    throttle_u = get_control_value(t,controls.throttle)
-    elev_deg = get_control_value(t,controls.elev_deg)
-    ail_deg = get_control_value(t,controls.ail_deg)
-    rudder_deg = get_control_value(t,controls.rudder_deg)
+    throttle_u = controls.throttle
+    elev_deg = controls.elev_deg
+    ail_deg = controls.ail_deg
+    rudder_deg = controls.rudder_deg
     
     # Assign state & control variables
     VT_ftps = X[0]
@@ -54,8 +69,7 @@ def eqm(t, X, controls, params):
     power = X[12]
     
     # Air data computer and engine model
-    mach, Q_Pa = airdata(VT_ftps*ft2m, alt_ft*ft2m)
-    Q_lbfpft2 = Q_Pa*0.0208854 #from Pascal to lbf/ft2
+    mach, Q_lbfpft2 = airdata(VT_ftps, alt_ft)
     
     # Engine model
     cpow = tgear(throttle_u)
@@ -148,18 +162,17 @@ def eqm(t, X, controls, params):
     XD[10] = u_ftps*S2 + v_ftps*S4 + w_ftps*S7        # East speed
     XD[11] = u_ftps*sin_theta - v_ftps*S5 - w_ftps*S8 # Vertical speed
     
-    outputs=pd.Series()
+    outputs = Outputs()
 
-    outputs.nz_g = -az_ftps2/g0_ftps2
+    outputs.nz_g = -az_ftps2/g0_ftps2 - 1 # remove 1 to account for gravity
+    outputs.nz_g_pilot = -(az_ftps2 - XD[7]*geom.pilot_station_ft + p_rps*r_rps*geom.pilot_station_ft)/g0_ftps2 - 1
     outputs.ny_g = ay_ftps2/g0_ftps2
     outputs.nx_g = ax_ftps2/g0_ftps2
     outputs.Q_lbfpft2 = Q_lbfpft2
     outputs.mach = mach
-    outputs.q_rps = q_rps
-    outputs.alpha_deg = alpha_deg
-    outputs.alt_ft = alt_ft
     outputs.thrust_pound = thrust_pound
     outputs.aero_forces = [CXT, CYT, CZT]
     outputs.aero_moments = [CLT, CMT, CNT]
+    outputs.gamma_deg = theta_rad*rad2deg - alpha_deg
 
     return XD, outputs

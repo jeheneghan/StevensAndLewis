@@ -1,24 +1,14 @@
 from trim_f16 import cost_trim_f16
-from params_f16 import load_f16
+from params_f16 import F16Params, Controls
 from engine_f16 import tgear
 from eqm import eqm
 from scipy.optimize import minimize
-import pandas as pd
 from scipy.integrate import odeint
 from numpy import arange, sin, cos
 import matplotlib.pyplot as plot
 
-params = load_f16()
-params.xcg = .35
-params.coordinated_turn = 0
-params.turn_rate_rps = 0.0
-params.roll_rate_rps = 0.0
-params.pitch_rate_rps = 0.0
-params.phi_rad = 0.0
-params.gamma_rad = 0.0
-params.stability_axis_roll = 0
-params.VT_ftps = 502
-params.alt_ft = 0
+params = F16Params()
+
 def costf16(x):
     y = cost_trim_f16(x,params)
     return y
@@ -49,7 +39,7 @@ X0 = [
      ]
 
 # PYTHON simulation
-controls=pd.Series()
+controls = Controls()
 
 controls.throttle = S[0]
 controls.elev_deg = S[1]
@@ -88,12 +78,12 @@ for i in range(0,len(t)):
     thrust_pound[i] = outputs.thrust_pound*sin(y[i,4])
 
 ax1=plot.subplot(311)
-ax1.plot(t, [elev_step(ti) for ti in t]);
-ax1.set_xlabel('Time(s)');
+ax1.plot(t, [elev_step(ti) for ti in t])
+ax1.set_xlabel('Time(s)')
 ax1.set_ylabel('Elevator(deg)')
 
 ax2=plot.subplot(312)
-ax2.plot(t, nzs_g);
+ax2.plot(t, nzs_g)
 ax2.set_xlabel('Time(s)')
 ax2.set_ylabel('Nz(g)')
 
@@ -102,3 +92,4 @@ ax3.plot(t, y[:,11])
 ax3.set_xlabel('Time(s)')
 ax3.set_ylabel('H(ft)')
 
+plot.show()

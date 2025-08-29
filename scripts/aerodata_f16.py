@@ -1,6 +1,7 @@
 from numpy import interp, zeros
+import numpy as np
 
-aero_damp_alpha_table = [
+aero_damp_alpha_table = np.array([
 [-.267, -.110, .308,  1.34,  2.08,  2.91,  2.76,  2.05,  1.50,  1.49,  1.83,  1.21],
 [.882,  .852,  .876,  .958,  .962,  .974,  .819,  .483,  .590,  1.21,  -.493, -1.04],
 [-.108, -.108, -1.88, .110,  .258,  .226,  .344,  .362,  .611,  .529,  .298,  -2.27],
@@ -10,27 +11,27 @@ aero_damp_alpha_table = [
 [-7.21, -.540, -5.23, -5.26, -6.11, -6.64, -5.69, -6.00, -6.20, -6.40, -6.60, -6.00],
 [-.380, -.363, -.378, -.386, -.370, -.453, -.550, -.582, -.595, -.637, -1.02, -.840],
 [.061,  .052,  .052,  -.102, -.013, -.024, .050,  .150,  .130,  .158,  .240,  .150]
-    ]
+    ])
 
-CX_alpha_elev_table = [
+CX_alpha_elev_table = np.array([
 [-.099, -.081, -.081, -.063, -.025, .044,  .097,  .113,  .145,  .167,  .174,  .166],
 [-.048, -.038, -.040, -.021, .016,  .083,  .127,  .137,  .162,  .177,  .179,  .167],
 [-.022, -.020, -.021, -.004, .032,  .094,  .128,  .130,  .154,  .161,  .155,  .138],
 [-.040, -.038, -.039, -.025, .006,  .062,  .087,  .085,  .100,  .110,  .104,  .091],
 [-.083, -.073, -.076, -.072, -.046, .012,  .024,  .025,  .043,  .053,  .047,  .040]
-    ]
+    ])
 
-CZ_alpha_table = [.770,  .241,  -.100, -.416, -.731, -1.053,  -1.366,  -1.646,  -1.917,  -2.120,  -2.248,  -2.229]
+CZ_alpha_table = np.array([.770,  .241,  -.100, -.416, -.731, -1.053,  -1.366,  -1.646,  -1.917,  -2.120,  -2.248,  -2.229])
 
-CM_alpha_elev_table = [
+CM_alpha_elev_table = np.array([
 [.205,  .168,  .186,  .196,  .213,  .251,  .245,  .238,  .252,  .231,  .198,  .192],
 [.081,  .077,  .107,  .110,  .110,  .141,  .127,  .119,  .133,  .108,  .081,  .093],
 [-.046, -.020, -.009, -.005, -.006, .010,  .006,  -.001, .014,  .000,  -.013, .032],
 [-.174, -.145, -.121, -.127, -.129, -.102, -.097, -.113, -.087, -.084, -.069, -.006],
 [-.259, -.202, -.184, -.193, -.199, -.150, -.160, -.167, -.104, -.076, -.041, -.005]
-    ]
+    ])
 
-CL_alpha_beta_table = [
+CL_alpha_beta_table = np.array([
 [.000,  .000,  .000,  .000,  .000,  .000,  .000,  .000,  .000,  .000,  .000,  .000],
 [-.001, -.004, -.008, -.012, -.016, -.019, -.020, -.020, -.015, -.008, -.013, -.015],
 [-.003, -.009, -.017, -.024, -.030, -.034, -.040, -.037, -.016, -.002, -.010, -.019],
@@ -38,9 +39,9 @@ CL_alpha_beta_table = [
 [.000,  -.010, -.022, -.034, -.047, -.046, -.059, -.061, -.033, -.036, -.035, -.035],
 [.007,  -.010, -.023, -.034, -.049, -.046, -.068, -.071, -.060, -.058, -.062, -.059],
 [.009,  -.011, -.023, -.037, -.050, -.047, -.074, -.079, -.091, -.076, -.077, -.076 ]
-    ]
+    ])
 
-CN_alpha_beta_table = [ 
+CN_alpha_beta_table = np.array([ 
 [.000,  .000,  .000,  .000,  .000,  .000,  .000,  .000,  .000,  .000,  .000,  .000],
 [.018,  .019,  .018,  .019,  .019,  .018,  .013,  .007,  .004,  -.014, -.017, -.033],
 [.038,  .042,  .042,  .042,  .043,  .039,  .030,  .017,  .004,  -.035, -.047, -.057],
@@ -48,9 +49,9 @@ CN_alpha_beta_table = [
 [.064,  .077,  .076,  .074,  .073,  .057,  .029,  .007,  .012,  -.034, -.065, -.041],
 [.074,  .086,  .093,  .089,  .080,  .062,  .049,  .022,  .028,  -.012, -.002, -.013],
 [.079,  .090,  .106,  .106,  .096,  .080,  .068,  .030,  .064,  .015,  .011,  -.001]
-    ]
+    ])
 
-DLDA_alpha_beta_table =[
+DLDA_alpha_beta_table = np.array([
 [-.041, -.052, -.053, -.056, -.050, -.056, -.082, -.059, -.042, -.038, -.027, -.017],
 [-.041, -.053, -.053, -.053, -.050, -.051, -.066, -.043, -.038, -.027, -.023, -.016],
 [-.042, -.053, -.052, -.051, -.049, -.049, -.043, -.035, -.026, -.016, -.018, -.014],
@@ -58,9 +59,9 @@ DLDA_alpha_beta_table =[
 [-.043, -.049, -.048, -.049, -.043, -.042, -.042, -.036, -.025, -.021, -.016, -.011],
 [-.044, -.048, -.048, -.047, -.042, -.041, -.020, -.028, -.013, -.014, -.011, -.010],
 [-.043, -.049, -.047, -.045, -.042, -.037, -.003, -.013, -.010, -.003, -.007, -.008]
-    ]
+    ])
 
-DLDR_alpha_beta_table = [
+DLDR_alpha_beta_table = np.array([
 [.005,  .017,  .014,  .010,  -.005, .009,  .019,  .005,  -.000, -.005, -.011, .008],
 [.007,  .016,  .014,  .014,  .013,  .009,  .012,  .005,  .000,  .004,  .009,  .007],
 [.013,  .013,  .011,  .012,  .011,  .009,  .008,  .005,  -.002, .005,  .003,  .005],
@@ -68,9 +69,9 @@ DLDR_alpha_beta_table = [
 [.015,  .014,  .013,  .013,  .012,  .011,  .011,  .010,  .008,  .008,  .007,  .003],
 [.021,  .011,  .010,  .011,  .010,  .009,  .008,  .010,  .006,  .005,  .000,  .001],
 [.023,  .010,  .011,  .011,  .011,  .010,  .008,  .010,  .006,  .014,  .020,  .000]
-    ]
+    ])
 
-DNDA_alpha_beta_table = [
+DNDA_alpha_beta_table = np.array([
 [.001,  -.027, -.017, -.013, -.012, -.016, .001,  .017,  .011,  .017,  .008,  .016],
 [.002,  -.014, -.016, -.016, -.014, -.019, -.021, .002,  .012,  .015,  .015,  .011],
 [-.006, -.008, -.006, -.006, -.005, -.008, -.005, .007,  .004,  .007,  .006,  .006],
@@ -78,9 +79,9 @@ DNDA_alpha_beta_table = [
 [-.015, -.015, -.014, -.012, -.011, -.008, -.002, .002,  .006,  .012,  .011,  .011],
 [-.024, -.010, -.004, -.002, -.001, .003,  .014,  .006,  -.001, .004,  .004,  .006],
 [-.022, .002,  -.003, -.005, -.003, -.001, -.009, -.009, -.001, .003,  -.002, .001 ]
-    ]
+    ])
 
-DNDR_alpha_beta_table = [
+DNDR_alpha_beta_table = np.array([
 [-.018, -.052, -.052, -.052, -.054, -.049, -.059, -.051, -.030, -.037, -.026, -.013], 
 [-.028, -.051, -.043, -.046, -.045, -.049, -.057, -.052, -.030, -.033, -.030, -.008],
 [-.037, -.041, -.038, -.040, -.040, -.038, -.037, -.030, -.027, -.024, -.019, -.013],
@@ -88,161 +89,294 @@ DNDR_alpha_beta_table = [
 [-.043, -.044, -.041, -.041, -.040, -.038, -.034, -.035, -.035, -.029, -.022, -.009],
 [-.052, -.034, -.036, -.036, -.035, -.028, -.024, -.023, -.020, -.016, -.010, -.014],
 [-.062, -.034, -.027, -.028, -.027, -.027, -.023, -.023, -.019, -.009, -.025, -.010],
-    ]
+    ])
 
-def angle_interp(angle_list_deg, angle_deg):
-    count_points = len(angle_list_deg) 
-    S = interp(angle_deg, angle_list_deg, range(0,count_points)) # the range started at 1 in scilab
-    K = int(S)
-    if (K<=0): 
-        K = 1
-        
-    if (K>=count_points):
-        K = count_points-1
-        
-    DA = S - float(K)
-    if DA < 0.0:
-        L = K-1
-    else:
-        L = K+1
-        
-    return S, K, DA, L
-
-def alpha_interp(alpha_deg):
-    S, K, DA, L = angle_interp(range(-10,45,5), alpha_deg)
-    return S, K, DA, L
-
-def elev_interp(elev_deg):
-    S, M, DE, N = angle_interp(range(-24,24,12), elev_deg)
-    return S, M, DE, N
-
-def coef_alpha_elev(A, alpha_deg, elev_deg):
-    S, K, DA, L = alpha_interp(alpha_deg)
-    S, M, DE, N = elev_interp(elev_deg)
-    T = A[M][K]
-    U = A[N][K]
-    V = T + abs(DA)*(A[M][L]-T)
-    W = U + abs(DA)*(A[N][L]-U)
-    y = V + (W-V)*abs(DE)
-    return y
-
-def coef_alpha_beta(A, alpha_deg, beta_deg, alpha_list_deg=None, beta_list_deg=None):
-    # [out, inp] = argn(0)
-    if not alpha_list_deg:
-        S, K, DA, L = alpha_interp(alpha_deg)
-    else:
-        S, K, DA, L = angle_interp(alpha_list_deg, alpha_deg)
-    
-    if not beta_list_deg:
-        S, M, DB, N = angle_interp(range(0,30,5), beta_deg)
-    else:
-        S, M, DB, N = angle_interp(beta_list_deg, beta_deg)
-    
-    T = A[M][K]
-    U = A[N][K]
-    V = T + abs(DA)*(A[M][L]-T)
-    W = U + abs(DA)*(A[N][L]-U)
-    y = V + (W-V)*abs(DB)
-
-    return y
-
-#  Public functions
-
-def aerodynamic_damp(alpha_deg):
-#  // D1 = CXq; D2 = CYr; D3 = CYp; D4 = CZq; D5 = Clr; D6 = Clp; D7 = Cmq;
-#  // D8 = Cnr; D9 = Cnp
+def aerodynamic_damp(alpha):
     A = aero_damp_alpha_table
 
-    S, K, DA, L = alpha_interp(alpha_deg)
-    D=zeros(9)
+    s = 0.2 * alpha + 3
+    k = int(np.round(s))
+
+    if k <= 1:
+        k = 2
+    if k >= 12:
+        k = 11
+
+    Da = s - float(k)
+    L = k + int(np.round(np.sign(Da)))
+
+    D = np.zeros(9)
     for i in range(9):
-        D[i] = A[i][K] + abs(DA)*(A[i][L] - A[i][K])    
-        D[i] = A[i][K] + abs(DA)*(A[i][L] - A[i][K])
+        D[i] = A[i, k-1] + abs(Da) * (A[i, L-1] - A[i, k-1])
     return D
 
-def CX(alpha_deg, elev_deg): 
-    """
-    x-axis aerodynamic force coeff.
-    """
+def CX(alpha, el): 
     A = CX_alpha_elev_table
-    y = coef_alpha_elev(A,alpha_deg,elev_deg)
-    return y
+    s = 0.2 * alpha + 3
+    k = int(np.round(s))
+
+    if k <= 1:
+        k = 2
+    if k >= 12:
+        k = 11
+
+    Da = s - float(k)
+    L = k + int(np.round(np.sign(Da)))
+
+    s_el = el / 12 + 3
+    m = int(np.round(s_el))
+
+    if m <= 1:
+        m = 2
+    if m >= 5:
+        m = 4
+
+    De = s_el - float(m)
+    N = m + int(np.round(np.sign(De)))
+
+    T = A[m-1, k-1]
+    U = A[N-1, k-1]
+    V = T + abs(Da) * (A[m-1, L-1] - T)
+    W = U + abs(Da) * (A[N-1, L-1] - U)
+    CxT = V + (W - V) * abs(De)
+    return CxT
 
 def CY(beta_deg, ail_deg, rudder_deg):
-    """
-    sideforce coefficient
-    """
-    y = -.02*beta_deg + .021*(ail_deg/20.0) + .086*(rudder_deg/30.0)
-    return y
 
-def CZ(alpha_deg, beta_deg, elev_deg):
-    """
-    z-axis force coeff
-    """
+    return -.02*beta_deg + .021*(ail_deg/20.0) + .086*(rudder_deg/30.0)
+
+def CZ(alpha, beta, el):
     A = CZ_alpha_table
-    S, K, DA, L = alpha_interp(alpha_deg)
-    S = A[K] + abs(DA)*(A[L] - A[K])
-    y = S*(1-(beta_deg/57.3)**2)-.19*(elev_deg/25)
-    return y
+    s = 0.2 * alpha + 3
+    k = int(np.round(s))
 
-def CM(alpha_deg, elev_deg):
-    """
-    pitching momento coeff.
-    """
+    if k <= 1:
+        k = 2
+    if k >= 12:
+        k = 11
+
+    Da = s - float(k)
+    L = k + int(np.round(np.sign(Da)))
+
+    s_val = A[k-1] + abs(Da) * (A[L-1] - A[k-1])
+
+    CzT = s_val * (1 - (beta / 57.3) ** 2) - 0.19 * (el / 25.0)
+    return CzT
+
+def CM(alpha, el):
     A = CM_alpha_elev_table
-    y = coef_alpha_elev(A,alpha_deg,elev_deg)
-    return y
 
-def CL(alpha_deg, beta_deg): 
-    """
-    rolling moment coeff
-    """
+    s = 0.2 * alpha + 3
+    k = int(np.round(s))
+
+    if k <= 1:
+        k = 2
+    if k >= 12:
+        k = 11
+
+    Da = s - float(k)
+    L = k + int(np.round(np.sign(Da)))
+
+    s_el = el / 12 + 3
+    m = int(np.round(s_el))
+
+    if m <= 1:
+        m = 2
+    if m >= 5:
+        m = 4
+
+    De = s_el - float(m)
+    N = m + int(np.round(np.sign(De)))
+
+    T = A[m-1, k-1]
+    U = A[N-1, k-1]
+    V = T + abs(Da) * (A[m-1, L-1] - T)
+    W = U + abs(Da) * (A[N-1, L-1] - U)
+    CmT = V + (W - V) * abs(De)
+    return CmT
+
+def CL(alpha, beta): 
     A = CL_alpha_beta_table
-    DUM = coef_alpha_beta(A, alpha_deg, abs(beta_deg))
-    if (beta_deg<0):
-        y = -DUM
-    else:
-        y = DUM
-    return y
+    s = 0.2 * alpha + 3
+    k = int(np.round(s))
 
-def CN(alpha_deg, beta_deg):
-    """
-    yawing moment coeff
-    """
+    if k <= 1:
+        k = 2
+    if k >= 12:
+        k = 11
+
+    Da = s - float(k)
+    L = k + int(np.round(np.sign(Da)))
+
+    s_beta = 0.2 * abs(beta) + 1
+    m = int(np.round(s_beta))
+    if m <= 1:
+        m = 2
+    if m >= 7:
+        m = 6
+
+    Db = s_beta - float(m)
+    n = m + int(np.round(np.sign(Db)))
+
+    T = A[m-1, k-1]
+    U = A[n-1, k-1]
+    V = T + abs(Da) * (A[m-1, L-1] - T)
+    W = U + abs(Da) * (A[n-1, L-1] - U)
+    Dum = V + (W - V) * abs(Db)
+    ClT = Dum * np.sign(beta)
+    return ClT
+
+def CN(alpha, beta):
     A = CN_alpha_beta_table
-    DUM = coef_alpha_beta(A, alpha_deg, abs(beta_deg))
-    if (beta_deg<0):
-        y = -DUM
-    else:
-        y = DUM
-    
-    return y
+    s = 0.2 * alpha + 3
+    k = int(np.round(s))
 
-def DLDA(alpha_deg, beta_deg):
-    """
-    rolling moment due to ailerons
-    """
+    if k <= 1:
+        k = 2
+    if k >= 12:
+        k = 11
+
+    Da = s - float(k)
+    L = k + int(np.round(np.sign(Da)))
+
+    s_beta = 0.2 * abs(beta) + 1
+    m = int(np.round(s_beta))
+    if m <= 1:
+        m = 2
+    if m >= 7:
+        m = 6
+
+    Db = s_beta - float(m)
+    n = m + int(np.round(np.sign(Db)))
+
+    T = A[m-1, k-1]
+    U = A[n-1, k-1]
+    V = T + abs(Da) * (A[m-1, L-1] - T)
+    W = U + abs(Da) * (A[n-1, L-1] - U)
+    Dum = V + (W - V) * abs(Db)
+    CnT = Dum * np.sign(beta)
+    return CnT
+
+def DLDA(alpha, beta):
     A = DLDA_alpha_beta_table
-    y = coef_alpha_beta(A, alpha_deg, beta_deg, range(-10,45,5), range(-30,30,10))
-    return y
+    s = 0.2 * alpha + 3
+    k = int(np.round(s))
 
-def DLDR(alpha_deg, beta_deg):
-    """
-    rolling momento due to rudder
-    """
+    if k <= 1:
+        k = 2
+    if k >= 12:
+        k = 11
+
+    Da = s - float(k)
+    L = k + int(np.round(np.sign(Da)))
+
+    s_beta = 0.1 * beta + 4
+    m = int(np.round(s_beta))
+
+    if m <= 1:
+        m = 2
+    if m >= 7:
+        m = 6
+
+    Db = s_beta - float(m)
+    N = m + int(np.round(np.sign(Db)))
+
+    T = A[m-1, k-1]
+    U = A[N-1, k-1]
+    V = T + abs(Da) * (A[m-1, L-1] - T)
+    W = U + abs(Da) * (A[N-1, L-1] - U)
+    DlDaT = V + (W - V) * abs(Db)
+    return DlDaT
+
+def DLDR(alpha, beta):
     A = DLDR_alpha_beta_table
-    y = coef_alpha_beta(A, alpha_deg, beta_deg, range(-10,45,5), range(-30,30,10))
-    return y
+    s = 0.2 * alpha + 3
+    k = int(np.round(s))
 
-def DNDA(alpha_deg, beta_deg):
+    if k <= 1:
+        k = 2
+    if k >= 12:
+        k = 11
+
+    Da = s - float(k)
+    L = k + int(np.round(np.sign(Da)))
+
+    s_beta = 0.1 * beta + 4
+    m = int(np.round(s_beta))
+
+    if m <= 1:
+        m = 2
+    if m >= 7:
+        m = 6
+
+    Db = s_beta - float(m)
+    N = m + int(np.round(np.sign(Db)))
+
+    T = A[m-1, k-1]
+    U = A[N-1, k-1]
+    V = T + abs(Da) * (A[m-1, L-1] - T)
+    W = U + abs(Da) * (A[N-1, L-1] - U)
+    DlDrT = V + (W - V) * abs(Db)
+    return DlDrT
+
+def DNDA(alpha, beta):
     A = DNDA_alpha_beta_table
-    y = coef_alpha_beta(A, alpha_deg, beta_deg, range(-10,45,5), range(-30,30,10))
-    return y
+    s = 0.2 * alpha + 3
+    k = int(np.round(s))
 
-def DNDR(alpha_deg, beta_deg):
-    """ 
-    yawing moment due to rudder
-    """
+    if k <= 1:
+        k = 2
+    if k >= 12:
+        k = 11
+
+    Da = s - float(k)
+    L = k + int(np.round(np.sign(Da)))
+
+    s_beta = 0.1 * beta + 4
+    m = int(np.round(s_beta))
+
+    if m <= 1:
+        m = 2
+    if m >= 7:
+        m = 6
+
+    Db = s_beta - float(m)
+    N = m + int(np.round(np.sign(Db)))
+
+    T = A[m-1, k-1]
+    U = A[N-1, k-1]
+    V = T + abs(Da) * (A[m-1, L-1] - T)
+    W = U + abs(Da) * (A[N-1, L-1] - U)
+    DnDaT = V + (W - V) * abs(Db)
+    return DnDaT
+
+def DNDR(alpha, beta):
     A = DNDR_alpha_beta_table
-    y = coef_alpha_beta(A, alpha_deg, beta_deg, range(-10,45,5), range(-30,30,10))
-    return y
+    s = 0.2 * alpha + 3
+    k = int(np.round(s))
+
+    if k <= 1:
+        k = 2
+    if k >= 12:
+        k = 11
+
+    Da = s - float(k)
+    L = k + int(np.round(np.sign(Da)))
+
+    s_beta = 0.1 * beta + 4
+    m = int(np.round(s_beta))
+
+    if m <= 1:
+        m = 2
+    if m >= 7:
+        m = 6
+
+    Db = s_beta - float(m)
+    N = m + int(np.round(np.sign(Db)))
+
+    T = A[m-1, k-1]
+    U = A[N-1, k-1]
+    V = T + abs(Da) * (A[m-1, L-1] - T)
+    W = U + abs(Da) * (A[N-1, L-1] - U)
+    DnDrT = V + (W - V) * abs(Db)
+    return DnDrT
