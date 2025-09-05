@@ -176,3 +176,88 @@ def eqm(X, controls, params):
     outputs.gamma_deg = theta_rad*rad2deg - alpha_deg
 
     return XD, outputs
+
+def transport(x, u, xcg=0.25, land=0):
+
+    # Constants
+    S = 2170.0  # ft^2
+    CBAR = 17.5  # ft
+    MASS = 5.0e3 # lb
+    IYY = 4.1e6 # slug*ft^2
+    TSTAT = 6.0e4
+    DTDV = -38.0
+    ZE = 2.0
+    CDCLS = 0.042
+    CLA = 0.085 # per deg
+    CMA = -0.022 # per deg
+    CMDE = -0.016 # per deg
+    CMQ = -16.0 # per rad/s
+    CMADOT = -6.0 # per rad
+    RTOD = 57.296
+    GD = 32.17 # ft/s^2
+
+    # State variables
+    Vt = x[0]
+    alpha = x[1] * RTOD
+    theta = x[2]
+    q = x[3]
+    h = x[4]
+
+    # Control variables
+    thtl = u[0]
+    elev = u[1]
+    # Handle glide path input for auto land
+    if len(u) > 2:
+        gamma_r = u[2]
+
+    # Atmosphere
+    mach, qbar = airdata(Vt, h)
+    rho_0 = 0.00237 # sl/ft^3
+    KEAS = sqrt(2*qbar/rho_0) * 0.5925 # knots
+
+    # Define useful variables
+    qS = qbar * S
+    salp = sin(x[1])
+    calp = cos(x[1])
+    gamma = theta - x[1]
+    sgam = sin(gamma)
+    cgam = cos(gamma)
+
+    # Constant coefficients
+    if land == 0:
+        CL0 = 0.20
+        CD0 = 0.016
+        CM0 = 0.05
+        DCDG = 0.0
+        DCMG = 0.0
+    else:
+        CL0 = 1.0
+        CD0 = 0.08
+        CM0 = -0.20
+        DCDG = 0.02
+        DCMG = -0.05
+
+    thrust = (TSTAT + DTDV * Vt) * min(max(thtl,0),1) # thrust
+    CL = CL0 + CLA * alpha # nondim lift
+    CM = DCMG + CM0 + CMA * alpha + CMDE * elev + CL * (xcg - 0.25) # moment
+    CD = DCDG + CD0 + CDCLS * CL**2 # drag polar
+
+    # State equations
+    xd = zeros(len(x))
+    xd[0] = (thrust*calp - qS * CD) / MASS - GD * sgam # Vt dot
+    xd[1] = (-thrust*salp - qS * CL + MASS * (Vt * q + GD * cgam)) / (MASS * Vt) # alpha dot
+    xd[2] = q # theta dot
+    D = 0.5 * CBAR * (CMQ * q + CMADOT * xd[1]) / Vt # pitch damping
+    xd[3] = (qS * CBAR * (CM + D) + thrust * ZE) / IYY # q dot
+    xd[4] = Vt * sgam # h dot
+    xd[5] = Vt * cgam # horizontal speed
+
+    # Handle glide path output for auto land
+    if len(x) > 6:
+        xd[6] = Vt * sin(gamma - gamma_r)
+
+    return xd, KEAS, qbar
+
+
+
+    
