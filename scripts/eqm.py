@@ -127,7 +127,7 @@ def eqm(X, controls, params):
     u2_plus_w2 = u_ftps**2 + w_ftps**2
     XD[0] = (u_ftps*udot_ftps2 + v_ftps*vdot_ftps2 + w_ftps*wdot_ftps2)/VT_ftps
     XD[1] = (u_ftps*wdot_ftps2 - w_ftps*udot_ftps2) / u2_plus_w2
-    XD[2] = (VT_ftps*vdot_ftps2 - v_ftps*XD[1])*cos_beta / u2_plus_w2
+    XD[2] = (VT_ftps*vdot_ftps2 - v_ftps*XD[0])*cos_beta / u2_plus_w2
     
     # Kinematics
     XD[3] = p_rps + (sin_theta/cos_theta)*(Q_sin_phi + r_rps*cos_phi)
