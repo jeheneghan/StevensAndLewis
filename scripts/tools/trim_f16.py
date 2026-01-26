@@ -1,5 +1,5 @@
-from engine_f16 import tgear
-from eqm import eqm
+from model.engine_f16 import tgear
+from model.eqm import eqm
 from numpy import zeros
 
 def cost_trim_f16_straight_level(S, controls, params):

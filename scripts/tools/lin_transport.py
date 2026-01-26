@@ -1,5 +1,5 @@
 import numpy as np
-from eqm import transport
+from model.eqm import transport
 from scipy.optimize import minimize
 import control as ct
 

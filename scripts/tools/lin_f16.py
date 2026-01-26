@@ -1,15 +1,14 @@
-from params_f16 import Controls
+from model.params_f16 import Controls
 from trim_f16 import cost_trim_f16_straight_level
 import numpy as np
-from eqm import eqm
-from engine_f16 import tgear
+from model.eqm import eqm
+from model.engine_f16 import tgear
 from scipy.optimize import minimize
 import control as ct
 
 RTOD = 57.29578
 
-def get_lin_f16(controls, params):
-
+def trim_f16(controls, params):
     def costf16(x):
         y = cost_trim_f16_straight_level(x,controls,params)
         return y
@@ -44,7 +43,11 @@ def get_lin_f16(controls, params):
     controls.ail_deg = S[3] # ail_deg
     controls.rudder_deg = S[4] # rudder_deg
 
-    Xd, outputs = eqm(X0, controls, params)
+    return X0, controls
+
+def get_lin_f16(controls, params):
+
+    X0, controls = trim_f16(controls, params)
 
     def linze(y, controls, params, maxiter=20):
 

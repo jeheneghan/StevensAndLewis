@@ -1,8 +1,8 @@
-from params_f16 import load_f16
+from model.params_f16 import load_f16
 from numpy import arange, sin, cos
 import pandas as pd
 from scipy.integrate import odeint
-from eqm import eqm
+from model.eqm import eqm
 import matplotlib.pyplot as plot
 import matplotlib
 
