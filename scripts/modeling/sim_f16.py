@@ -94,7 +94,7 @@ def simulate_realtime_decoupled(func, X0, t, controls_list, params):
                 roll=y[3, i] * 57.296,
                 airspeed=y[0, i] * 0.592484,
                 airspeed_cmd=200,
-                vspeed=(y[0, i] - y[0, i-1]) / (t[i] - t[i-1]) * 60,
+                vspeed= -(y[0, i] - y[0, i-1]) / (t[i] - t[i-1]) * 60,
                 altitude=y[11, i],
                 altitude_cmd=10000,
                 heading=y[6, i] * 57.296,

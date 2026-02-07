@@ -1,5 +1,5 @@
 # exec('atmosphere/atmos_constants.sci');
-from atmos_constants import atmos
+from modeling.atmos_constants import atmos
 from numpy import exp
 
 def atmosphere(h_m, deltaIsa=None):

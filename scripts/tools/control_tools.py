@@ -1,10 +1,25 @@
 import numpy as np
-
+from scipy.optimize import minimize
+from matplotlib import pyplot as plt
+import control as ct
 
 def wn_zeta(arr):
     wn = np.abs(arr)
     zeta = -np.real(arr) / wn
     return wn, zeta
+
+def is_pos_def(M):
+    vals = np.linalg.eigvalsh(M)
+    return np.all(vals >= 0)
+
+def plot_step(sys, t, ylabel, title):
+    t, y = ct.step_response(sys, t)
+    plt.plot(t, y.T)
+    plt.xlabel('Time (s)')
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.grid()
+    plt.show()
 
 
 def OptimalOutputFeedback(sys_cmd2latf, Q, R, K_0, max_iters=100, tol=1e-6, stab_tol=1e-8):
@@ -21,10 +36,6 @@ def OptimalOutputFeedback(sys_cmd2latf, Q, R, K_0, max_iters=100, tol=1e-6, stab
 
     K_k = K_0.copy()
     nstates = sys_cmd2latf.nstates
-
-    def is_pos_def(M):
-        vals = np.linalg.eigvalsh(M)
-        return np.all(vals >= 0)
 
     # Initial evaluation
     A_k = A - B @ K_k @ C
@@ -125,3 +136,35 @@ def lyapunov(A, Q):
     P = P_vec.reshape(n, n, order='F')
     P = 0.5 * (P + P.T)
     return P
+
+def LQTracker(sys, g, f, Q, R, K_0):
+    def perf_index(sys, r, Q, R, K):
+        Q_eff = sys.C.T @ K.T @ R @ K @ sys.C + Q
+
+        if not is_pos_def(Q_eff):
+            J = 1e10
+
+        A_c = sys.A - sys.B @ K @ sys.C
+        B_c = g - sys.B @ K @ f
+        # Solve Lyapunov equation for P
+        P = lyapunov(A_c, Q_eff)
+        X = np.linalg.inv(A_c) @ B_c @ r @ r.T @ B_c.T @ np.linalg.inv(A_c).T
+        J = 0.5 * np.trace(P @ X)
+
+        return J
+
+    def objective(k_vec, sys, X, Q, R):
+        K_mat = k_vec.reshape(sys.ninputs, sys.noutputs)
+        J_val = perf_index(sys, X, Q, R, K_mat)
+        return J_val
+
+    k0 = K_0.flatten()
+    res = minimize(objective, k0, args=(sys, np.array([[1.0]]), Q, R))
+    k_opt = res.x
+
+    K_opt = k_opt.reshape(sys.ninputs, sys.noutputs)
+    J_opt = perf_index(sys, np.array([[1.0]]), Q, R, K_opt)
+    print('J_opt =', J_opt)
+    print('K_opt =\n', K_opt)   
+
+    return K_opt

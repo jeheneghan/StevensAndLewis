@@ -1,8 +1,8 @@
-from model.params_f16 import Controls
+from modeling.params_f16 import Controls
 from trim_f16 import cost_trim_f16_straight_level
 import numpy as np
-from model.eqm import eqm
-from model.engine_f16 import tgear
+from modeling.eqm import eqm
+from modeling.engine_f16 import tgear
 from scipy.optimize import minimize
 import control as ct
 

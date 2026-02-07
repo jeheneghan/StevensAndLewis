@@ -1,7 +1,7 @@
-from atmosphere import atmosphere
-from atmos_constants import atmos
-from engine_f16 import tgear, pdot, thrust
-from aerodata_f16 import CX,CY,CZ, CL,CM,CN, DLDA, DLDR, DNDA, DNDR, aerodynamic_damp
+from modeling.atmosphere import atmosphere
+from modeling.atmos_constants import atmos
+from modeling.engine_f16 import tgear, pdot, thrust
+from modeling.aerodata_f16 import CX,CY,CZ, CL,CM,CN, DLDA, DLDR, DNDA, DNDR, aerodynamic_damp
 from numpy import sqrt, cos, sin, zeros
 from numpy import sqrt
 
