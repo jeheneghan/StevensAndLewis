@@ -168,3 +168,63 @@ def LQTracker(sys, g, f, Q, R, K_0):
     print('K_opt =\n', K_opt)   
 
     return K_opt
+
+
+import math
+def nested_lyapunov(A, Q, P_base, k_max):
+    """
+    Solves the nested Lyapunov chain:
+        A.T @ P0 + P0 @ A + P_base = 0
+        A.T @ P1 + P1 @ A + P0 = 0
+        ...
+        A.T @ Pk + Pk @ A + k! * P_{k-1} + Q = 0
+    """
+    Ps = []
+    
+    # Base equation
+    P0 = lyapunov(A.T, P_base)
+    Ps.append(P0)
+    
+    # Intermediate terms
+    for k in range(1, k_max):
+        if k < k_max - 1:
+            RHS = Ps[k-1]
+            Pk = lyapunov(A.T, RHS)
+        else:
+            RHS = math.factorial(k) * Ps[k-1] + Q
+            Pk = lyapunov(A.T, RHS)
+        Ps.append(Pk)
+    
+    return Pk
+
+def LQTrackerTime(sys, g, f, P_base, Q, R, K_0):
+    def perf_index(sys, r, Q, R, K):
+        Q_eff = sys.C.T @ K.T @ R @ K @ sys.C + Q
+
+        if not is_pos_def(Q_eff):
+            J = 1e10
+
+        A_c = sys.A - sys.B @ K @ sys.C
+        B_c = g - sys.B @ K @ f
+        # Solve Lyapunov equation for P
+        P = nested_lyapunov(A_c, Q_eff, P_base, k_max=10)
+        X = np.linalg.inv(A_c) @ B_c @ r @ r.T @ B_c.T @ np.linalg.inv(A_c).T
+        J = 0.5 * np.trace(P @ X)
+
+        return J
+
+    def objective(k_vec, sys, X, Q, R):
+        K_mat = k_vec.reshape(sys.ninputs, sys.noutputs)
+        J_val = perf_index(sys, X, Q, R, K_mat)
+        return J_val
+
+    k0 = K_0.flatten()
+    res = minimize(objective, k0, args=(sys, np.array([[1.0]]), Q, R))
+    k_opt = res.x
+
+    K_opt = k_opt.reshape(sys.ninputs, sys.noutputs)
+    J_opt = perf_index(sys, np.array([[1.0]]), Q, R, K_opt)
+    print('J_opt =', J_opt)
+    print('K_opt =\n', K_opt)   
+
+    return K_opt
