@@ -1,0 +1,373 @@
+"""
+Real-time simulation with independent physics and graphics threads.
+
+Physics runs at 200 Hz (5ms per step)
+Graphics renders at 60 FPS (16.67ms per frame)
+
+Communication between threads uses a shared state dictionary.
+"""
+
+import time
+import threading
+import numpy as np
+import keyboard
+import tkinter as tk
+from tkinter import simpledialog
+from pfd.primary_flight_display import AircraftState, PrimaryFlightDisplay
+from modeling.sim_f16 import RK4
+from tools.lin_f16 import trim_f16 as trimmer
+import pygame
+
+# Constants
+PHYSICS_HZ = 200
+GRAPHICS_FPS = 60
+SCREEN_WIDTH = 1000
+SCREEN_HEIGHT = 800
+
+PHYSICS_DT = 1.0 / PHYSICS_HZ      # ~5ms
+GRAPHICS_DT = 1.0 / GRAPHICS_FPS   # ~16.67ms
+
+sim_state = {
+    'running': True,        # Flag to control simulation loop
+}
+
+
+def _state_vector_to_aircraft_state(y_current, y_previous, dt):
+    """
+    Convert state vector to AircraftState for display.
+    
+    State vector y indices:
+        0: airspeed (ft/s)
+        2: heading rate
+        3: roll (rad)
+        4: pitch (rad)
+        6: heading (rad)
+        11: altitude (ft)
+    
+    Args:
+        y_current: Current state vector
+        y_previous: Previous state vector
+        dt: Time step
+        power: Power setting (0.0 to 1.0)
+    """
+    airspeed = y_current[0, 0]
+    vspeed = (y_current[11, 0] - y_previous[11, 0]) / dt * 60  # ft/min
+    Nspeed = (y_current[9, 0] - y_previous[9, 0]) / dt  # ft/s
+    Espeed = (y_current[10, 0] - y_previous[10, 0]) / dt  # ft/s
+    
+    return AircraftState(
+        pitch=y_current[4, 0] * 57.296,          # rad to deg
+        roll=y_current[3, 0] * 57.296,           # rad to deg
+        airspeed=airspeed * 0.592484,            # ft/s to knots
+        airspeed_cmd=200,
+        vspeed=vspeed,
+        altitude=y_current[11, 0],               # ft
+        altitude_cmd=10000,
+        heading=y_current[5, 0] * 57.296,        # rad to deg
+        heading_cmd=0,
+        course=_unwrap_angle(np.arctan2(Espeed, Nspeed) * 57.296),
+        power=y_current[12, 0],
+    )
+
+def _unwrap_angle(angle_deg):
+    """Unwrap angle to range [0, 360]."""
+    if angle_deg < 0:
+        angle_deg += 360
+    return angle_deg
+
+
+def _update_controls_from_keyboard(controls_state, elev_neutral):
+    """
+    Update control inputs based on keyboard input.
+    
+    Keyboard mappings:
+        'a': Aileron left (ail_deg = -1)
+        'd': Aileron right (ail_deg = 1)
+        's': Elevator down (elev_deg = -1)
+        'w': Elevator up (elev_deg = 1)
+    """
+    # Reset to neutral
+    controls_state.ail_deg = 0
+    controls_state.elev_deg = elev_neutral
+    controls_state.rudder_deg = 0
+    
+    # Check aileron inputs
+    if keyboard.is_pressed('a'):
+        controls_state.ail_deg = 5
+    elif keyboard.is_pressed('d'):
+        controls_state.ail_deg = -5
+    
+    # Check elevator inputs
+    if keyboard.is_pressed('s'):
+        controls_state.elev_deg = elev_neutral - 5
+    elif keyboard.is_pressed('w'):
+        controls_state.elev_deg = elev_neutral + 5
+
+    # Check rudder inputs
+    if keyboard.is_pressed('right'):
+        controls_state.rudder_deg = -10
+    elif keyboard.is_pressed('left'):
+        controls_state.rudder_deg = 10
+
+def _update_controls_from_joystick(joystick, controls_state, elev_neutral, throttle_neutral):
+    """
+    Update control inputs based on joystick input.
+    
+    Joystick mappings (example):
+        Axis 0: Aileron (-1 left, +1 right)
+        Axis 1: Elevator (-1 up, +1 down)
+        Axis 2: Rudder (-1 left, +1 right)
+    """
+
+    # Aileron Input
+    controls_state.ail_deg = -joystick.get_axis(0) * 21.5  # Scale to degrees
+
+    # Elevator Input
+    elev_deg_unclipped = elev_neutral - joystick.get_axis(1) * 25 # Scale to degrees
+    controls_state.elev_deg = np.clip(elev_deg_unclipped, - 25, + 25)
+
+    # Throttle Input
+    throttle_unclipped = throttle_neutral - (joystick.get_axis(2)) # Scale to 0-100%
+    controls_state.throttle = np.clip(throttle_unclipped, 0, 1)
+
+    # Rudder Input
+    controls_state.rudder_deg = 0
+    if keyboard.is_pressed('right'):
+        controls_state.rudder_deg = -10
+    elif keyboard.is_pressed('left'):
+        controls_state.rudder_deg = 10
+
+def _check_exit_condition():
+    if keyboard.is_pressed('e') or keyboard.is_pressed('esc'):
+        print("Exit key pressed. Stopping simulation.")
+        sim_state['running'] = False
+
+
+def _show_trimming_dialog(params):
+    """
+    Show a dialog to update altitude, speed, and xcg.
+    Returns True if dialog was submitted, False if cancelled.
+    """
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    
+    # Create a custom dialog
+    result = {}
+    
+    def on_submit():
+        try:
+            result['alt_ft'] = float(alt_entry.get())
+            result['VT_ftps'] = float(speed_entry.get())
+            result['xcg'] = float(xcg_entry.get())
+            dialog.destroy()
+            root.destroy()
+        except ValueError:
+            status_label.config(text="Error: Please enter valid numbers", fg="red")
+    
+    dialog = tk.Toplevel(root)
+    dialog.title("Update Flight Parameters")
+    dialog.geometry("350x200")
+    
+    # Altitude
+    tk.Label(dialog, text="Altitude (ft):").grid(row=0, column=0, sticky="w", padx=10, pady=5)
+    alt_entry = tk.Entry(dialog)
+    alt_entry.insert(0, str(params.alt_ft))
+    alt_entry.grid(row=0, column=1, padx=10, pady=5)
+    
+    # Speed
+    tk.Label(dialog, text="Speed (ft/s):").grid(row=1, column=0, sticky="w", padx=10, pady=5)
+    speed_entry = tk.Entry(dialog)
+    speed_entry.insert(0, str(params.VT_ftps))
+    speed_entry.grid(row=1, column=1, padx=10, pady=5)
+    
+    # XCG
+    tk.Label(dialog, text="XCG (fraction):").grid(row=2, column=0, sticky="w", padx=10, pady=5)
+    xcg_entry = tk.Entry(dialog)
+    xcg_entry.insert(0, str(params.xcg))
+    xcg_entry.grid(row=2, column=1, padx=10, pady=5)
+    
+    # Status label
+    status_label = tk.Label(dialog, text="", fg="green")
+    status_label.grid(row=3, column=0, columnspan=2, pady=10)
+    
+    # Buttons
+    submit_button = tk.Button(dialog, text="Submit", command=on_submit)
+    submit_button.grid(row=4, column=0, padx=10, pady=5, sticky="e")
+    
+    cancel_button = tk.Button(dialog, text="Cancel", command=dialog.destroy)
+    cancel_button.grid(row=4, column=1, padx=10, pady=5, sticky="w")
+    
+    root.mainloop()
+    
+    return result
+
+
+def simulate_realtime(func, X0, controls_state, params):
+    """
+    Run F16 simulation with real-time visualization.
+    
+    Physics and graphics run in separate threads:
+    - Physics thread: 200 Hz update rate
+    - Graphics thread: 60 FPS render rate
+    
+    Args:
+        func: Physics function (eqm for F16)
+        X0: Initial state vector (12-element array)
+        controls_state: Control inputs (Controls object)
+        params: Aircraft parameters (F16Params object)
+        input_method: 'keyboard' or 'joystick' for control input
+    """
+    
+    # Initialize state
+    m = len(X0)
+    y_init = np.zeros((m, 1))
+    y_init[:, 0:1] = X0  # Ensure column vector format
+    
+    # Shared state between threads (dict allows updates by reference)
+    shared_state = {
+        'y': y_init,
+        'y_prev': y_init.copy(),
+        'elev_neutral': controls_state.elev_deg,
+        'throttle_neutral': controls_state.throttle,
+        'aircraft_state': None,
+        'running': True,
+    }
+    
+    # Setup graphics
+    pfd = PrimaryFlightDisplay(
+        (SCREEN_WIDTH, SCREEN_HEIGHT),
+        masked=True,
+        max_fps=GRAPHICS_FPS
+    )
+
+    input_method = 'keyboard'
+    pygame.init()
+    pygame.joystick.init()
+    if pygame.joystick.get_count() == 0:
+        print("No joystick detected. Using keyboard input.")
+        print("  'w': Elevator up")
+        print("  's': Elevator down")
+        print("  'a': Aileron left")
+        print("  'd': Aileron right")
+        print("  'arrow left': Rudder left")
+        print("  'arrow right': Rudder right")
+        print("  'arrow up': Throttle up")
+        print("  'arrow down': Throttle down")
+        print("  't': Open trim dialog (altitude, speed, xcg)")
+        print("  'e' or 'esc': Exit simulation")
+    else:
+        joystick = pygame.joystick.Joystick(0)
+        joystick.init()
+        print(f"Using joystick: {joystick.get_name()}")
+        print(f"Axes: {joystick.get_numaxes()}, Buttons: {joystick.get_numbuttons()}")
+        print("  'arrow left': Rudder left")
+        print("  't': Open trim dialog (altitude, speed, xcg)")
+        print("  'e' or 'esc': Exit simulation")
+        input_method = 'joystick'
+    
+    # =========================================================================
+    # PHYSICS THREAD
+    # =========================================================================
+    def physics_loop():
+        """Run physics simulation at constant 200 Hz."""
+        while sim_state['running']:
+            loop_start = time.time()
+            
+            if input_method == 'joystick':
+                # Update controls from joystick input
+                _update_controls_from_joystick(joystick, controls_state, shared_state['elev_neutral'], shared_state['throttle_neutral'])
+            else:
+                # Update controls from keyboard input
+                _update_controls_from_keyboard(controls_state, shared_state['elev_neutral'])
+            
+            # Check for trim dialog (press 't')
+            if keyboard.is_pressed('t'):
+                print("Opening trim dialog...")
+                time.sleep(0.2)  # Debounce
+                result = _show_trimming_dialog(params)
+                if result:
+                    # Update parameters
+                    params.alt_ft = result['alt_ft']
+                    params.VT_ftps = result['VT_ftps']
+                    params.xcg = result['xcg']
+                    print(f"Parameters updated: Alt={params.alt_ft} ft, Speed={params.VT_ftps} ft/s, XCG={params.xcg}")
+                    
+                    # Re-trim the aircraft with new parameters
+                    try:
+                        X0_new, U0_new = trimmer(controls_state, params)
+                        shared_state['y'] = X0_new
+                        shared_state['y_prev'] = shared_state['y'].copy()
+                        controls_state.throttle = U0_new.throttle
+                        shared_state['elev_neutral'] = U0_new.elev_deg
+                        print("Aircraft re-trimmed successfully.")
+                    except Exception as e:
+                        print(f"Error re-trimming: {e}")
+            
+            # Compute next state
+            y_next, outputs = RK4(
+                func=func,
+                y0=shared_state['y'][:, 0],      # Pass 1D state
+                h=PHYSICS_DT,
+                controls=controls_state,
+                params=params
+            )
+            
+            # Update shared state
+            shared_state['y_prev'] = shared_state['y'].copy()
+            shared_state['y'] = y_next.reshape(-1, 1)  # Reshape to 2D column
+            
+            # Convert to visualization format
+            shared_state['aircraft_state'] = _state_vector_to_aircraft_state(
+                shared_state['y'],
+                shared_state['y_prev'],
+                PHYSICS_DT
+            )
+            
+            # Check for exit signal
+            _check_exit_condition()
+            if not sim_state['running']:
+                break
+            
+            # Sleep to maintain 200 Hz
+            elapsed = time.time() - loop_start
+            sleep_time = PHYSICS_DT - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+    
+    # =========================================================================
+    # START PHYSICS THREAD
+    # =========================================================================
+    physics_thread = threading.Thread(target=physics_loop, daemon=True)
+    physics_thread.start()
+    
+    # =========================================================================
+    # GRAPHICS LOOP (main thread)
+    # =========================================================================
+    start_time = time.time()
+    
+    try:
+        while shared_state['running']:
+            loop_start = time.time()
+            elapsed = loop_start - start_time
+            
+            # Render with latest state from physics thread
+            if shared_state['aircraft_state']:
+                pfd.update(shared_state['aircraft_state'], elapsed)
+                pfd.draw()
+                pfd.render()
+            
+            # Sleep to maintain 60 FPS
+            loop_elapsed = time.time() - loop_start
+            sleep_time = GRAPHICS_DT - loop_elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            
+            # Exit if physics thread is done
+            if not physics_thread.is_alive():
+                break
+    
+    finally:
+        # Cleanup
+        shared_state['running'] = False
+        physics_thread.join(timeout=1.0)
+        print("Simulation complete.")

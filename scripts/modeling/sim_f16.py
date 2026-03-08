@@ -35,6 +35,7 @@ def simulate(func, X0, t, controls_list, params):
 import time
 import threading
 from queue import Queue
+import keyboard
 
 def simulate_realtime_decoupled(func, X0, t, controls_list, params):
     """
@@ -107,6 +108,11 @@ def simulate_realtime_decoupled(func, X0, t, controls_list, params):
                 state_queue.put_nowait(current_state)
             except:
                 pass  # Queue full, skip update
+
+            # Check for exit key
+            if keyboard.is_pressed('e'):
+                print("Exit key pressed. Stopping simulation.")
+                break
             
             # Sleep to maintain 200 Hz
             physics_elapsed = time.time() - physics_start

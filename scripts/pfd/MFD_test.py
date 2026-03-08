@@ -34,7 +34,6 @@ def main():
     X0, U0, t, controls_list = _make_controls_and_t(params, controls)
 
     y, outputs = simulate_realtime_decoupled(func=eqm, X0=X0, t=t, controls_list=controls_list, params=params)
-    print(f"Simulation complete: {len(t)} steps")
     return y, outputs
 
 if __name__ == "__main__":

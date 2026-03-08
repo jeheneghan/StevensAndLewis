@@ -39,6 +39,8 @@ class AircraftState:
     heading: float
     heading_cmd: float
     course: float
+    ### power setting inputs
+    power: float = 0.0
 
 
 class PrimaryFlightDisplay:
@@ -50,6 +52,16 @@ class PrimaryFlightDisplay:
         self.screen = pygame.display.set_mode((self.resolution[0], self.resolution[1]))
         self.screen_rect = self.screen.get_rect()
         pygame.display.set_caption("Primary Flight Display - v1.0")
+
+        # Bring window to front (Windows only, fails on other OS)
+        try:
+            import ctypes
+            hwnd = ctypes.windll.user32.FindWindowW(None, "Primary Flight Display - v1.0")
+            if hwnd:
+                ctypes.windll.user32.SetForegroundWindow(hwnd)
+                ctypes.windll.user32.ShowWindow(hwnd, 1)  # 1 = SW_SHOWNORMAL
+        except:
+            pass  # ignore on non-Windows
 
         self.max_fps = kwargs.get("max_fps", None)
         self.fps = 0.0
@@ -81,6 +93,7 @@ class PrimaryFlightDisplay:
 
         self.render_rects = [self.screen_rect]
         self.text_color = (0, 0, 0)
+        self.power = 0.0
 
         self.masked = kwargs.get("masked", False)
         if self.masked:
@@ -138,6 +151,20 @@ class PrimaryFlightDisplay:
         self.screen.blit(time_txt, time_txt_rect)
         return time_txt_rect
 
+    def draw_power(self) -> pygame.Rect:
+        font = pygame.font.SysFont("helvetica", int(self.size // 15))
+        power_pct = self.power
+        power_txt = font.render(f"{power_pct:.0f}%", True, (255, 255, 255))
+        power_txt_rect = power_txt.get_rect()
+        # Position underneath the altitude indicator
+        power_txt_rect.topleft = (
+            self.altitude_indicator.background_rect.centerx,
+            self.altitude_indicator.background_rect.bottom + int(self.size // 30)
+        )
+        power_txt_rect.w = 200  # Ensure rect width for proper rendering
+        self.screen.blit(power_txt, power_txt_rect)
+        return power_txt_rect
+
     def update(self, state: AircraftState, real_time: float = None, sim_time: float = None) -> None:
         self.state = state
         self.artifical_horizon.update(state.roll, state.pitch)
@@ -145,6 +172,7 @@ class PrimaryFlightDisplay:
         self.altitude_indicator.update(state.altitude, state.altitude_cmd)
         self.vspeed_indicator.update(state.vspeed)
         self.heading_indicator.update(state.heading, state.course, state.heading_cmd)
+        self.power = state.power
         self.real_time = real_time
         self.sim_time = sim_time
 
@@ -156,6 +184,7 @@ class PrimaryFlightDisplay:
         render_rects.append(self.vspeed_indicator.draw())
         render_rects.append(self.heading_indicator.draw())
         render_rects.append(self.draw_fps())
+        render_rects.append(self.draw_power())
         self.real_time = 0.0
         render_rects.append(self.draw_real_time())
         self.sim_time = 0.0
@@ -191,6 +220,7 @@ class PrimaryFlightDisplay:
         if self.masked:
             self.screen.blit(self.ah_screen, self.ah_screen_rect)
         self.draw_fps()
+        self.draw_power()
         if not self.real_time is None:
             self.draw_real_time()
         if not self.sim_time is None:
