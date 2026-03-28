@@ -2,31 +2,39 @@ from modeling.atmosphere import atmosphere
 from modeling.atmos_constants import atmos
 from modeling.engine_f16 import tgear, pdot, thrust
 from modeling.aerodata_f16 import CX,CY,CZ, CL,CM,CN, DLDA, DLDR, DNDA, DNDR, aerodynamic_damp
-from numpy import sqrt, cos, sin, zeros
+from numpy import sqrt, cos, sin, zeros, arctan2
 from numpy import sqrt
 
-# Set extra outputs for eqm
-class Outputs:
-    def __init__(self):
-        self.nz_g = 0.0
-        self.nz_g_pilot = 0.0
-        self.ny_g = 0.0
-        self.nx_g = 0.0
-        self.Q_lbfpft2 = 0.0
-        self.mach = 0.0
-        self.thrust_pound = 0.0
-        self.aero_forces = [0.0,0.0,0.0]
-        self.aero_moments = [0.0,0.0,0.0]
-        self.gamma_deg = 0.0
+R0 = 2.377e-3 # slug/ft^3
 
-    def get(self, name):
-        return getattr(self, name)
-    
-    def set(self, name, value):
-        setattr(self, name, value)
+# Set extra outputs for eqm
+Outputs = {
+    'keas': 0.0,
+    'alpha_deg': 0.0,
+    'beta_deg': 0.0,
+    'pitch_deg': 0.0,
+    'roll_deg': 0.0,
+    'p_dps': 0.0,
+    'q_dps': 0.0,
+    'r_dps': 0.0,
+    'nz_g': 0.0,
+    'nz_g_pilot': 0.0,
+    'ny_g': 0.0,
+    'nx_g': 0.0,
+    'Q_lbfpft2': 0.0,
+    'mach': 0.0,
+    'thrust_pound': 0.0,
+    'aero_forces': [0.0, 0.0, 0.0],
+    'aero_moments': [0.0, 0.0, 0.0],
+    'gamma_deg': 0.0,
+    'heading_deg': 0.0,
+    'track_deg': 0.0,
+    'altitude_ft': 0.0,
+    'vspeed_fpm': 0.0,
+    'power': 0.0
+}
 
 def  airdata(Vt_fps, alt_ft):
-    R0 = 2.377e-3
     TFac = 1 - 0.703e-5 * alt_ft
     T = 519 * TFac
 
@@ -37,6 +45,12 @@ def  airdata(Vt_fps, alt_ft):
     aMach = Vt_fps/sqrt(1.4*1716.3*T)
     qBar = 0.5*rho*Vt_fps**2
     return aMach, qBar
+
+def _unwrap_angle(angle_deg):
+    """Unwrap angle to range [0, 360]."""
+    if angle_deg < 0:
+        angle_deg += 360
+    return angle_deg
 
 def eqm(X, controls, params):
     # F-16 model from Stevens And Lewis,second edition, pg 184
@@ -162,20 +176,31 @@ def eqm(X, controls, params):
     XD[10] = u_ftps*S2 + v_ftps*S4 + w_ftps*S7        # East speed
     XD[11] = u_ftps*sin_theta - v_ftps*S5 - w_ftps*S8 # Vertical speed
     
-    outputs = Outputs()
+    Outputs['keas'] = sqrt(2*Q_lbfpft2/R0)*0.5925
+    Outputs['alpha_deg'] = alpha_deg
+    Outputs['beta_deg'] = beta_deg
+    Outputs['pitch_deg'] = theta_rad*rad2deg
+    Outputs['roll_deg'] = phi_rad*rad2deg
+    Outputs['p_dps'] = p_rps*rad2deg
+    Outputs['q_dps'] = q_rps*rad2deg
+    Outputs['r_dps'] = r_rps*rad2deg
+    Outputs['nz_g'] = -az_ftps2/g0_ftps2 - 1 # remove 1 to account for gravity
+    Outputs['nz_g_pilot'] = -(az_ftps2 - XD[7]*geom.pilot_station_ft + p_rps*r_rps*geom.pilot_station_ft)/g0_ftps2 - 1
+    Outputs['ny_g'] = ay_ftps2/g0_ftps2
+    Outputs['nx_g'] = ax_ftps2/g0_ftps2
+    Outputs['Q_lbfpft2'] = Q_lbfpft2
+    Outputs['mach'] = mach
+    Outputs['thrust_pound'] = thrust_pound
+    Outputs['aero_forces'] = [CXT, CYT, CZT]
+    Outputs['aero_moments'] = [CLT, CMT, CNT]
+    Outputs['gamma_deg'] = theta_rad*rad2deg - alpha_deg
+    Outputs['heading_deg'] = _unwrap_angle(psi_rad*rad2deg)
+    Outputs['track_deg'] = _unwrap_angle(arctan2(XD[10], XD[9])*rad2deg)
+    Outputs['altitude_ft'] = alt_ft
+    Outputs['vspeed_fpm'] = XD[11]*60
+    Outputs['power'] = power
 
-    outputs.nz_g = -az_ftps2/g0_ftps2 - 1 # remove 1 to account for gravity
-    outputs.nz_g_pilot = -(az_ftps2 - XD[7]*geom.pilot_station_ft + p_rps*r_rps*geom.pilot_station_ft)/g0_ftps2 - 1
-    outputs.ny_g = ay_ftps2/g0_ftps2
-    outputs.nx_g = ax_ftps2/g0_ftps2
-    outputs.Q_lbfpft2 = Q_lbfpft2
-    outputs.mach = mach
-    outputs.thrust_pound = thrust_pound
-    outputs.aero_forces = [CXT, CYT, CZT]
-    outputs.aero_moments = [CLT, CMT, CNT]
-    outputs.gamma_deg = theta_rad*rad2deg - alpha_deg
-
-    return XD, outputs
+    return XD, Outputs
 
 def transport(x, u, xcg=0.25, land=0):
 

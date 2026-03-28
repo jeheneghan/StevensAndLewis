@@ -11,7 +11,6 @@ from tools.lin_f16 import trim_f16 as trimmer
 from modeling.eqm import eqm
 
 FPS = 200
-END_TIME = 20.0
 
 def _init_(params, controls):
     """Create initial states, time vector, and controls_list for the sim."""
@@ -22,11 +21,11 @@ def main():
     params = F16Params()
     params.alt_ft = 20000.0
     params.VT_ftps = 502.0
-    params.xcg = 0.25
+    params.xcg = 0.35
     controls = Controls()
     X0, U0 = _init_(params, controls)
 
-    simulate_realtime(func=eqm, X0=X0, controls_state=U0, params=params)
+    simulate_realtime(func=eqm, X0=X0, controls_state=U0, params=params, SAS='s')
 
 if __name__ == "__main__":
     main()

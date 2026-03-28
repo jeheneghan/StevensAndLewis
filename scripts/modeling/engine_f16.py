@@ -78,14 +78,14 @@ def thrust(power, alt_ft, rmach):
         
     H = 0.0001*alt_ft
     I = int(H)+1
-    if (I>=6): 
-        I=5
+    if (I>=5): 
+        I = 4
     
     DH = H - float(I-1)
     RM = 5.0*rmach
     M = int(RM)+1
-    if (M>=6):
-        M = 5
+    if (M>=5):
+        M = 4
     
     DM = RM - float(M-1)
     CDH = 1.0 - DH

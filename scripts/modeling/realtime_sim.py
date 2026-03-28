@@ -12,11 +12,11 @@ import threading
 import numpy as np
 import keyboard
 import tkinter as tk
-from tkinter import simpledialog
 from pfd.primary_flight_display import AircraftState, PrimaryFlightDisplay
 from modeling.sim_f16 import RK4
 from tools.lin_f16 import trim_f16 as trimmer
 import pygame
+from flightcontrols.flight_controls import update_controls_from_fcs
 
 # Constants
 PHYSICS_HZ = 200
@@ -31,18 +31,16 @@ sim_state = {
     'running': True,        # Flag to control simulation loop
 }
 
+# MFD commands dict
+commands = {
+    'airspeed_cmd': 200,
+    'altitude_cmd': 10000,
+    'heading_cmd': 0,
+}
 
-def _state_vector_to_aircraft_state(y_current, y_previous, dt):
+def _state_vector_to_aircraft_state(outputs, commands):
     """
     Convert state vector to AircraftState for display.
-    
-    State vector y indices:
-        0: airspeed (ft/s)
-        2: heading rate
-        3: roll (rad)
-        4: pitch (rad)
-        6: heading (rad)
-        11: altitude (ft)
     
     Args:
         y_current: Current state vector
@@ -50,30 +48,20 @@ def _state_vector_to_aircraft_state(y_current, y_previous, dt):
         dt: Time step
         power: Power setting (0.0 to 1.0)
     """
-    airspeed = y_current[0, 0]
-    vspeed = (y_current[11, 0] - y_previous[11, 0]) / dt * 60  # ft/min
-    Nspeed = (y_current[9, 0] - y_previous[9, 0]) / dt  # ft/s
-    Espeed = (y_current[10, 0] - y_previous[10, 0]) / dt  # ft/s
     
     return AircraftState(
-        pitch=y_current[4, 0] * 57.296,          # rad to deg
-        roll=y_current[3, 0] * 57.296,           # rad to deg
-        airspeed=airspeed * 0.592484,            # ft/s to knots
-        airspeed_cmd=200,
-        vspeed=vspeed,
-        altitude=y_current[11, 0],               # ft
-        altitude_cmd=10000,
-        heading=y_current[5, 0] * 57.296,        # rad to deg
-        heading_cmd=0,
-        course=_unwrap_angle(np.arctan2(Espeed, Nspeed) * 57.296),
-        power=y_current[12, 0],
+        pitch=outputs['pitch_deg'],
+        roll=outputs['roll_deg'],
+        airspeed=outputs['keas'],
+        airspeed_cmd=commands['airspeed_cmd'],
+        vspeed=outputs['vspeed_fpm'],
+        altitude=outputs['altitude_ft'],
+        altitude_cmd=commands['altitude_cmd'],
+        heading=outputs['heading_deg'],
+        heading_cmd=commands['heading_cmd'],
+        course=outputs['track_deg'],
+        power=outputs['power'],
     )
-
-def _unwrap_angle(angle_deg):
-    """Unwrap angle to range [0, 360]."""
-    if angle_deg < 0:
-        angle_deg += 360
-    return angle_deg
 
 
 def _update_controls_from_keyboard(controls_state, elev_neutral):
@@ -202,7 +190,7 @@ def _show_trimming_dialog(params):
     return result
 
 
-def simulate_realtime(func, X0, controls_state, params):
+def simulate_realtime(func, X0, controls_state, params, SAS='n'):
     """
     Run F16 simulation with real-time visualization.
     
@@ -229,6 +217,7 @@ def simulate_realtime(func, X0, controls_state, params):
         'y_prev': y_init.copy(),
         'elev_neutral': controls_state.elev_deg,
         'throttle_neutral': controls_state.throttle,
+        'SAS': SAS,
         'aircraft_state': None,
         'running': True,
     }
@@ -271,14 +260,7 @@ def simulate_realtime(func, X0, controls_state, params):
     def physics_loop():
         """Run physics simulation at constant 200 Hz."""
         while sim_state['running']:
-            loop_start = time.time()
-            
-            if input_method == 'joystick':
-                # Update controls from joystick input
-                _update_controls_from_joystick(joystick, controls_state, shared_state['elev_neutral'], shared_state['throttle_neutral'])
-            else:
-                # Update controls from keyboard input
-                _update_controls_from_keyboard(controls_state, shared_state['elev_neutral'])
+            loop_start = time.time()         
             
             # Check for trim dialog (press 't')
             if keyboard.is_pressed('t'):
@@ -311,16 +293,26 @@ def simulate_realtime(func, X0, controls_state, params):
                 controls=controls_state,
                 params=params
             )
-            
+
+            if input_method == 'joystick':
+                # Update controls from joystick input
+                _update_controls_from_joystick(joystick, controls_state, shared_state['elev_neutral'], shared_state['throttle_neutral'])
+            else:
+                # Update controls from keyboard input
+                _update_controls_from_keyboard(controls_state, shared_state['elev_neutral'])
+
+            if shared_state['SAS'] != 'n':
+                # Update controls from Flight Control System
+                update_controls_from_fcs(shared_state['SAS'], outputs, controls_state, shared_state['elev_neutral'])
+
             # Update shared state
             shared_state['y_prev'] = shared_state['y'].copy()
             shared_state['y'] = y_next.reshape(-1, 1)  # Reshape to 2D column
             
             # Convert to visualization format
             shared_state['aircraft_state'] = _state_vector_to_aircraft_state(
-                shared_state['y'],
-                shared_state['y_prev'],
-                PHYSICS_DT
+                outputs,
+                commands
             )
             
             # Check for exit signal

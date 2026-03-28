@@ -10,7 +10,7 @@ def RK4(func, y0, h, controls, params):
     k4, _ = func(y0+ h * k3, controls, params)
     y = y0 + (h / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
-    outputs = func(y, controls, params)
+    _, outputs = func(y, controls, params)
 
     return y, outputs
 
