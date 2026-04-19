@@ -12,14 +12,14 @@ from datetime import timedelta
 import numpy as np
 import pygame
 
-from airspeed import AirspeedIndicator
-from airspeed_little import AirspeedIndicatorLittle
-from altimeter import AltitudeIndicator
-from altimeter_little import AltitudeIndicatorLittle
-from attitude import ArtificalHorizon
-from heading import HeadingIndicator
-from vspeed import VerticalSpeedIndicator
-from vspeed_little import VerticalSpeedIndicatoLittle
+from pfd.airspeed import AirspeedIndicator
+from pfd.airspeed_little import AirspeedIndicatorLittle
+from pfd.altimeter import AltitudeIndicator
+from pfd.altimeter_little import AltitudeIndicatorLittle
+from pfd.attitude import ArtificalHorizon
+from pfd.heading import HeadingIndicator
+from pfd.vspeed import VerticalSpeedIndicator
+from pfd.vspeed_little import VerticalSpeedIndicatoLittle
 
 
 @dataclass

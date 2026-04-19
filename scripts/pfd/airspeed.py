@@ -8,7 +8,7 @@
 import numpy as np
 import pygame
 
-from common import get_digit, quit_out_range
+from pfd.common import get_digit, quit_out_range
 
 
 class AirspeedIndicator:

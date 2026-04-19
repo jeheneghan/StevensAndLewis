@@ -1,0 +1,6 @@
+numpy
+control
+keyboard
+pygame
+notebook
+ipympl

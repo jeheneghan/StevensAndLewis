@@ -1,7 +1,7 @@
 import numpy as np
 import pygame
 
-from common import quit_out_range
+from pfd.common import quit_out_range
 
 
 class ArtificalHorizon:

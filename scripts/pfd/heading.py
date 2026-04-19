@@ -8,7 +8,7 @@
 import numpy as np
 import pygame
 
-from common import clip_angle_180, clip_angle_360, diff_angle_180
+from pfd.common import clip_angle_180, clip_angle_360, diff_angle_180
 
 
 class HeadingIndicator:

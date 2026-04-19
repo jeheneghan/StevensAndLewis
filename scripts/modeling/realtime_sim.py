@@ -31,12 +31,15 @@ sim_state = {
     'running': True,        # Flag to control simulation loop
 }
 
-# MFD commands dict
-commands = {
-    'airspeed_cmd': 200,
-    'altitude_cmd': 10000,
-    'heading_cmd': 0,
-}
+class CommandState:
+    """Container for MFD command values."""
+    def __init__(self, airspeed_cmd=200, altitude_cmd=10000, heading_cmd=0):
+        self.airspeed_cmd = airspeed_cmd
+        self.altitude_cmd = altitude_cmd
+        self.heading_cmd = heading_cmd
+
+# MFD commands
+commands = CommandState()
 
 def _state_vector_to_aircraft_state(outputs, commands):
     """
@@ -50,21 +53,21 @@ def _state_vector_to_aircraft_state(outputs, commands):
     """
     
     return AircraftState(
-        pitch=outputs['pitch_deg'],
-        roll=outputs['roll_deg'],
-        airspeed=outputs['keas'],
-        airspeed_cmd=commands['airspeed_cmd'],
-        vspeed=outputs['vspeed_fpm'],
-        altitude=outputs['altitude_ft'],
-        altitude_cmd=commands['altitude_cmd'],
-        heading=outputs['heading_deg'],
-        heading_cmd=commands['heading_cmd'],
-        course=outputs['track_deg'],
-        power=outputs['power'],
+        pitch=outputs.pitch_deg,
+        roll=outputs.roll_deg,
+        airspeed=outputs.keas,
+        airspeed_cmd=commands.airspeed_cmd,
+        vspeed=outputs.vspeed_fpm,
+        altitude=outputs.altitude_ft,
+        altitude_cmd=commands.altitude_cmd,
+        heading=outputs.heading_deg,
+        heading_cmd=commands.heading_cmd,
+        course=outputs.track_deg,
+        power=outputs.power,
     )
 
 
-def _update_controls_from_keyboard(controls_state, elev_neutral):
+def _update_controls_from_keyboard(controls_state, shared_state):
     """
     Update control inputs based on keyboard input.
     
@@ -74,6 +77,15 @@ def _update_controls_from_keyboard(controls_state, elev_neutral):
         's': Elevator down (elev_deg = -1)
         'w': Elevator up (elev_deg = 1)
     """
+
+    # Trim Input
+    if keyboard.is_pressed('u'):  
+        shared_state['elev_neutral'] += 3 * PHYSICS_DT
+    elif keyboard.is_pressed('n'):
+        shared_state['elev_neutral'] -= 3 * PHYSICS_DT
+    
+    elev_neutral = shared_state['elev_neutral']
+
     # Reset to neutral
     controls_state.ail_deg = 0
     controls_state.elev_deg = elev_neutral
@@ -97,7 +109,13 @@ def _update_controls_from_keyboard(controls_state, elev_neutral):
     elif keyboard.is_pressed('left'):
         controls_state.rudder_deg = 10
 
-def _update_controls_from_joystick(joystick, controls_state, elev_neutral, throttle_neutral):
+    # Check throttle inputs
+    if keyboard.is_pressed('up'):
+        controls_state.throttle = min(controls_state.throttle + 0.1*PHYSICS_DT, 1)
+    elif keyboard.is_pressed('down'):
+        controls_state.throttle = max(controls_state.throttle - 0.1*PHYSICS_DT, 0.0)
+
+def _update_controls_from_joystick(joystick, controls_state, shared_state):
     """
     Update control inputs based on joystick input.
     
@@ -106,6 +124,16 @@ def _update_controls_from_joystick(joystick, controls_state, elev_neutral, throt
         Axis 1: Elevator (-1 up, +1 down)
         Axis 2: Rudder (-1 left, +1 right)
     """
+
+    # Trim Input (using POV hat)
+    hat = joystick.get_hat(0)  # Get POV hat position
+    if hat[1] == 1:  # POV hat up to increase elevator trim
+        shared_state['elev_neutral'] += 3 * PHYSICS_DT
+    elif hat[1] == -1:  # POV hat down to decrease elevator trim
+        shared_state['elev_neutral'] -= 3 * PHYSICS_DT
+    
+    elev_neutral = shared_state['elev_neutral']
+    throttle_neutral = shared_state['throttle_neutral']
 
     # Aileron Input
     controls_state.ail_deg = -joystick.get_axis(0) * 21.5  # Scale to degrees
@@ -131,10 +159,17 @@ def _check_exit_condition():
         sim_state['running'] = False
 
 
-def _show_trimming_dialog(params):
+# Flight Control System options
+FCS_OPTIONS = {
+    'n': 'None',
+    'sas': 'Stability Augmentation System',
+}
+
+
+def _show_combined_dialog(current_sas, params):
     """
-    Show a dialog to update altitude, speed, and xcg.
-    Returns True if dialog was submitted, False if cancelled.
+    Show a combined dialog to select flight control system and update trim parameters.
+    Returns a dict with 'sas' and trim parameters, or empty dict if cancelled.
     """
     root = tk.Tk()
     root.withdraw()  # Hide the root window
@@ -144,6 +179,7 @@ def _show_trimming_dialog(params):
     
     def on_submit():
         try:
+            result['sas'] = fcs_var.get()
             result['alt_ft'] = float(alt_entry.get())
             result['VT_ftps'] = float(speed_entry.get())
             result['xcg'] = float(xcg_entry.get())
@@ -153,41 +189,93 @@ def _show_trimming_dialog(params):
             status_label.config(text="Error: Please enter valid numbers", fg="red")
     
     dialog = tk.Toplevel(root)
-    dialog.title("Update Flight Parameters")
-    dialog.geometry("350x200")
+    dialog.title("Flight Parameters and Control System")
+    dialog.geometry("400x350")
+    
+    # Create canvas and scrollbar
+    canvas = tk.Canvas(dialog, highlightthickness=0)
+    scrollbar = tk.Scrollbar(dialog, orient="vertical", command=canvas.yview)
+    scrollable_frame = tk.Frame(canvas)
+    
+    scrollable_frame.bind(
+        "<Configure>",
+        lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
+    
+    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+    
+    # Mouse wheel scrolling support
+    def _on_mousewheel(event):
+        canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+    
+    canvas.bind_all("<MouseWheel>", _on_mousewheel)
+    
+    # Pack canvas and scrollbar
+    canvas.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
+    scrollbar.grid(row=0, column=2, sticky="ns", pady=5)
+    dialog.grid_rowconfigure(0, weight=1)
+    
+    # FCS Selection Section
+    tk.Label(scrollable_frame, text="Flight Control System:", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
+    
+    fcs_var = tk.StringVar(value=current_sas)
+    fcs_menu = tk.OptionMenu(scrollable_frame, fcs_var, *FCS_OPTIONS.keys())
+    fcs_menu.grid(row=1, column=0, columnspan=2, padx=10, pady=5)
+    
+    # Display FCS description
+    desc_label = tk.Label(scrollable_frame, text=f"Selected: {FCS_OPTIONS.get(current_sas, 'Unknown')}", fg="blue")
+    desc_label.grid(row=2, column=0, columnspan=2, padx=10, pady=5)
+    
+    def update_desc(*args):
+        desc_label.config(text=f"Selected: {FCS_OPTIONS.get(fcs_var.get(), 'Unknown')}")
+    
+    fcs_var.trace('w', update_desc)
+    
+    # Separator
+    tk.Frame(scrollable_frame, height=2, bd=1, relief="sunken").grid(row=3, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
+    
+    # Trimming Parameters Section
+    tk.Label(scrollable_frame, text="Trim Parameters:", font=("Arial", 10, "bold")).grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=(5, 5))
     
     # Altitude
-    tk.Label(dialog, text="Altitude (ft):").grid(row=0, column=0, sticky="w", padx=10, pady=5)
-    alt_entry = tk.Entry(dialog)
+    tk.Label(scrollable_frame, text="Altitude (ft):").grid(row=5, column=0, sticky="w", padx=10, pady=3)
+    alt_entry = tk.Entry(scrollable_frame)
     alt_entry.insert(0, str(params.alt_ft))
-    alt_entry.grid(row=0, column=1, padx=10, pady=5)
+    alt_entry.grid(row=5, column=1, padx=10, pady=3)
     
     # Speed
-    tk.Label(dialog, text="Speed (ft/s):").grid(row=1, column=0, sticky="w", padx=10, pady=5)
-    speed_entry = tk.Entry(dialog)
+    tk.Label(scrollable_frame, text="Speed (ft/s):").grid(row=6, column=0, sticky="w", padx=10, pady=3)
+    speed_entry = tk.Entry(scrollable_frame)
     speed_entry.insert(0, str(params.VT_ftps))
-    speed_entry.grid(row=1, column=1, padx=10, pady=5)
+    speed_entry.grid(row=6, column=1, padx=10, pady=3)
     
     # XCG
-    tk.Label(dialog, text="XCG (fraction):").grid(row=2, column=0, sticky="w", padx=10, pady=5)
-    xcg_entry = tk.Entry(dialog)
+    tk.Label(scrollable_frame, text="XCG (fraction):").grid(row=7, column=0, sticky="w", padx=10, pady=3)
+    xcg_entry = tk.Entry(scrollable_frame)
     xcg_entry.insert(0, str(params.xcg))
-    xcg_entry.grid(row=2, column=1, padx=10, pady=5)
+    xcg_entry.grid(row=7, column=1, padx=10, pady=3)
     
     # Status label
-    status_label = tk.Label(dialog, text="", fg="green")
-    status_label.grid(row=3, column=0, columnspan=2, pady=10)
+    status_label = tk.Label(scrollable_frame, text="", fg="green")
+    status_label.grid(row=8, column=0, columnspan=2, pady=5)
     
-    # Buttons
-    submit_button = tk.Button(dialog, text="Submit", command=on_submit)
-    submit_button.grid(row=4, column=0, padx=10, pady=5, sticky="e")
+    # Buttons (fixed at bottom, not scrollable)
+    button_frame = tk.Frame(dialog)
+    button_frame.grid(row=1, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
     
-    cancel_button = tk.Button(dialog, text="Cancel", command=dialog.destroy)
-    cancel_button.grid(row=4, column=1, padx=10, pady=5, sticky="w")
+    submit_button = tk.Button(button_frame, text="Apply", command=on_submit)
+    submit_button.pack(side="right", padx=5)
+    
+    cancel_button = tk.Button(button_frame, text="Cancel", command=dialog.destroy)
+    cancel_button.pack(side="right", padx=5)
     
     root.mainloop()
     
     return result
+
+
+
 
 
 def simulate_realtime(func, X0, controls_state, params, SAS='n'):
@@ -242,7 +330,9 @@ def simulate_realtime(func, X0, controls_state, params, SAS='n'):
         print("  'arrow right': Rudder right")
         print("  'arrow up': Throttle up")
         print("  'arrow down': Throttle down")
-        print("  't': Open trim dialog (altitude, speed, xcg)")
+        print("  'u': Elevator trim down")
+        print("  'n': Elevator trim up")
+        print("  't': Select flight control system")
         print("  'e' or 'esc': Exit simulation")
     else:
         joystick = pygame.joystick.Joystick(0)
@@ -250,7 +340,8 @@ def simulate_realtime(func, X0, controls_state, params, SAS='n'):
         print(f"Using joystick: {joystick.get_name()}")
         print(f"Axes: {joystick.get_numaxes()}, Buttons: {joystick.get_numbuttons()}")
         print("  'arrow left': Rudder left")
-        print("  't': Open trim dialog (altitude, speed, xcg)")
+        print("  'arrow right': Rudder right")
+        print("  't': Select flight control system")
         print("  'e' or 'esc': Exit simulation")
         input_method = 'joystick'
     
@@ -262,28 +353,34 @@ def simulate_realtime(func, X0, controls_state, params, SAS='n'):
         while sim_state['running']:
             loop_start = time.time()         
             
-            # Check for trim dialog (press 't')
+            # Check for combined dialog (press 't')
             if keyboard.is_pressed('t'):
-                print("Opening trim dialog...")
+                print("Opening flight parameters dialog...")
                 time.sleep(0.2)  # Debounce
-                result = _show_trimming_dialog(params)
+                result = _show_combined_dialog(shared_state['SAS'], params)
                 if result:
-                    # Update parameters
-                    params.alt_ft = result['alt_ft']
-                    params.VT_ftps = result['VT_ftps']
-                    params.xcg = result['xcg']
-                    print(f"Parameters updated: Alt={params.alt_ft} ft, Speed={params.VT_ftps} ft/s, XCG={params.xcg}")
+                    # Update SAS
+                    if 'sas' in result:
+                        shared_state['SAS'] = result['sas']
+                        print(f"Flight Control System updated to: {FCS_OPTIONS.get(result['sas'], 'Unknown')}")
                     
-                    # Re-trim the aircraft with new parameters
-                    try:
-                        X0_new, U0_new = trimmer(controls_state, params)
-                        shared_state['y'] = X0_new
-                        shared_state['y_prev'] = shared_state['y'].copy()
-                        controls_state.throttle = U0_new.throttle
-                        shared_state['elev_neutral'] = U0_new.elev_deg
-                        print("Aircraft re-trimmed successfully.")
-                    except Exception as e:
-                        print(f"Error re-trimming: {e}")
+                    # Update trim parameters
+                    if 'alt_ft' in result:
+                        params.alt_ft = result['alt_ft']
+                        params.VT_ftps = result['VT_ftps']
+                        params.xcg = result['xcg']
+                        print(f"Parameters updated: Alt={params.alt_ft} ft, Speed={params.VT_ftps} ft/s, XCG={params.xcg}")
+                        
+                        # Re-trim the aircraft with new parameters
+                        try:
+                            X0_new, U0_new = trimmer(controls_state, params)
+                            shared_state['y'] = X0_new
+                            shared_state['y_prev'] = shared_state['y'].copy()
+                            controls_state.throttle = U0_new.throttle
+                            shared_state['elev_neutral'] = U0_new.elev_deg
+                            print("Aircraft re-trimmed successfully.")
+                        except Exception as e:
+                            print(f"Error re-trimming: {e}")
             
             # Compute next state
             y_next, outputs = RK4(
@@ -296,14 +393,14 @@ def simulate_realtime(func, X0, controls_state, params, SAS='n'):
 
             if input_method == 'joystick':
                 # Update controls from joystick input
-                _update_controls_from_joystick(joystick, controls_state, shared_state['elev_neutral'], shared_state['throttle_neutral'])
+                _update_controls_from_joystick(joystick, controls_state, shared_state)
             else:
                 # Update controls from keyboard input
-                _update_controls_from_keyboard(controls_state, shared_state['elev_neutral'])
+                _update_controls_from_keyboard(controls_state, shared_state)
 
             if shared_state['SAS'] != 'n':
                 # Update controls from Flight Control System
-                update_controls_from_fcs(shared_state['SAS'], outputs, controls_state, shared_state['elev_neutral'])
+                update_controls_from_fcs(shared_state['SAS'], outputs, controls_state, shared_state)
 
             # Update shared state
             shared_state['y_prev'] = shared_state['y'].copy()

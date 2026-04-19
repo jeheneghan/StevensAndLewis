@@ -105,9 +105,9 @@ def aerodynamic_damp(alpha):
     Da = s - float(k)
     L = k + int(np.round(np.sign(Da)))
 
-    D = np.zeros(9)
+    D = np.zeros((9,1))
     for i in range(9):
-        D[i] = A[i, k-1] + abs(Da) * (A[i, L-1] - A[i, k-1])
+        D[i,0] = A[i, k-1] + abs(Da) * (A[i, L-1] - A[i, k-1])
     return D
 
 def CX(alpha, el): 

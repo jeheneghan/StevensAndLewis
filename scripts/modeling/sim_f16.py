@@ -4,6 +4,7 @@ from pfd.primary_flight_display import AircraftState, PrimaryFlightDisplay
 
 def RK4(func, y0, h, controls, params):
 
+    y0 = np.c_[y0]  # Ensure y0 is a column vector
     k1, outputs = func(y0, controls, params)
     k2, _ = func(y0+ h / 2 * k1, controls, params)
     k3, _ = func(y0 + h / 2 * k2, controls, params)

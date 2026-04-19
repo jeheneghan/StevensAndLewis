@@ -1,5 +1,5 @@
 from modeling.params_f16 import Controls
-from trim_f16 import cost_trim_f16_straight_level
+from tools.trim_f16 import cost_trim_f16_straight_level
 import numpy as np
 from modeling.eqm import eqm
 from modeling.engine_f16 import tgear
@@ -31,12 +31,12 @@ def trim_f16(controls, params):
     print(f"Beta (deg): {S[5] * RTOD:.2f}")
 
     X0 = np.zeros((13,1))
-    X0[0] = params.VT_ftps # VT_fps
-    X0[1] = S[2] # alpha_rad
-    X0[2] = S[5] # beta_rad
-    X0[4] = X0[1] # theta_rad
-    X0[11] = params.alt_ft # alt_ft
-    X0[12] = tgear(S[0]) # power_perc
+    X0[0,0] = params.VT_ftps # VT_fps
+    X0[1,0] = S[2] # alpha_rad
+    X0[2,0] = S[5] # beta_rad
+    X0[4,0] = X0[1,0] # theta_rad
+    X0[11,0] = params.alt_ft # alt_ft
+    X0[12,0] = tgear(S[0]) # power_perc
 
     controls.throttle = S[0] # throttle 0-1
     controls.elev_deg = S[1] # elev_deg
@@ -161,6 +161,6 @@ def get_lin_f16(controls, params):
 
         return lon_sys, lat_sys
 
-    lon_sys, lat_sys = linze(np.c_[X0], controls, params)
+    lon_sys, lat_sys = linze(X0, controls, params)
     return lon_sys, lat_sys
 
