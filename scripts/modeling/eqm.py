@@ -236,18 +236,18 @@ def transport(x, u, xcg=0.25, land=0):
     GD = 32.17 # ft/s^2
 
     # State variables
-    Vt = x[0,0]
-    alpha = x[1,0] * RTOD
-    theta = x[2,0]
-    q = x[3,0]
-    h = x[4,0]
+    Vt = x[0]
+    alpha = x[1] * RTOD
+    theta = x[2]
+    q = x[3]
+    h = x[4]
 
     # Control variables
-    thtl = u[0,0]
-    elev = u[1,0]
+    thtl = u[0]
+    elev = u[1]
     # Handle glide path input for auto land
     if len(u) > 2:
-        gamma_r = u[2,0]
+        gamma_r = u[2]
 
     # Atmosphere
     mach, qbar = airdata(Vt, h)
@@ -256,9 +256,9 @@ def transport(x, u, xcg=0.25, land=0):
 
     # Define useful variables
     qS = qbar * S
-    salp = sin(x[1,0])
-    calp = cos(x[1,0])
-    gamma = theta - x[1,0]
+    salp = sin(x[1])
+    calp = cos(x[1])
+    gamma = theta - x[1]
     sgam = sin(gamma)
     cgam = cos(gamma)
 
@@ -283,17 +283,17 @@ def transport(x, u, xcg=0.25, land=0):
 
     # State equations
     xd = zeros(len(x))
-    xd[0,0] = (thrust*calp - qS * CD) / MASS - GD * sgam # Vt dot
-    xd[1,0] = (-thrust*salp - qS * CL + MASS * (Vt * q + GD * cgam)) / (MASS * Vt) # alpha dot
-    xd[2,0] = q # theta dot
-    D = 0.5 * CBAR * (CMQ * q + CMADOT * xd[1,0]) / Vt # pitch damping
-    xd[3,0] = (qS * CBAR * (CM + D) + thrust * ZE) / IYY # q dot
-    xd[4,0] = Vt * sgam # h dot
-    xd[5,0] = Vt * cgam # horizontal speed
+    xd[0] = (thrust*calp - qS * CD) / MASS - GD * sgam # Vt dot
+    xd[1] = (-thrust*salp - qS * CL + MASS * (Vt * q + GD * cgam)) / (MASS * Vt) # alpha dot
+    xd[2] = q # theta dot
+    D = 0.5 * CBAR * (CMQ * q + CMADOT * xd[1]) / Vt # pitch damping
+    xd[3] = (qS * CBAR * (CM + D) + thrust * ZE) / IYY # q dot
+    xd[4] = Vt * sgam # h dot
+    xd[5] = Vt * cgam # horizontal speed
 
     # Handle glide path output for auto land
     if len(x) > 6:
-        xd[6,0] = Vt * sin(gamma - gamma_r)
+        xd[6] = Vt * sin(gamma - gamma_r)
 
     return xd, KEAS, qbar
 
