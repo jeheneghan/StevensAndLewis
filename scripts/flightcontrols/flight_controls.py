@@ -1,3 +1,8 @@
+import numpy as np
+
+AILERON_SCH_BP = [-21.5, -1.0, 1.0, 21.5]
+AILERON_SCH_OUT = [-21.5, 0.0, 0.0, 21.5]
+
 def _apply_washout_filter(value, filter):
     """First-order washout filter"""
     filtered_value =  value - filter.u + 0.998 * filter.y
@@ -55,7 +60,7 @@ def update_controls_from_fcs(SAS, outputs, controls_state, shared_state):
     elevon_sas = elevon_controller(SAS, outputs, elevon_pilot)
 
     # Aileron
-    aileron_pilot = controls_state.ail_deg
+    aileron_pilot = np.interp(controls_state.ail_deg, AILERON_SCH_BP, AILERON_SCH_OUT)
     aileron_sas = aileron_controller(SAS, outputs, aileron_pilot)
 
     # Rudder

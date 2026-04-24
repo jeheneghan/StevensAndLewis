@@ -122,7 +122,7 @@ def _update_controls_from_joystick(joystick, controls_state, shared_state):
     Joystick mappings (example):
         Axis 0: Aileron (-1 left, +1 right)
         Axis 1: Elevator (-1 up, +1 down)
-        Axis 2: Rudder (-1 left, +1 right)
+        Axis 2: Throttle (-1 full, +1 idle) - will be inverted and clipped to 0-1 range
     """
 
     # Trim Input (using POV hat)
