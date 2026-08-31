@@ -10,7 +10,7 @@ def wn_zeta(arr):
 
 def is_pos_def(M):
     vals = np.linalg.eigvalsh(M)
-    return np.all(vals >= 0)
+    return np.all(vals <= 0)
 
 def plot_step(sys, t, ylabel, title):
     t, y = ct.step_response(sys, t)
@@ -201,13 +201,11 @@ def LQTrackerTime(sys, g, f, P_base, Q, R, K_0):
     def perf_index(sys, r, Q, R, K):
         Q_eff = sys.C.T @ K.T @ R @ K @ sys.C + Q
 
-        if not is_pos_def(Q_eff):
-            J = 1e10
-
         A_c = sys.A - sys.B @ K @ sys.C
         B_c = g - sys.B @ K @ f
         # Solve Lyapunov equation for P
-        P = nested_lyapunov(A_c, Q_eff, P_base, k_max=10)
+        P = lyapunov(A_c,P_base)
+        P = lyapunov(A_c,2*P + Q_eff)
         X = np.linalg.inv(A_c) @ B_c @ r @ r.T @ B_c.T @ np.linalg.inv(A_c).T
         J = 0.5 * np.trace(P @ X)
 
